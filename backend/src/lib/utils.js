@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 
+const getJwtSecret = () => process.env.JWT_SECRET || "fallback-secret";
+
 export const generateToken = (userId, res) => {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ userId }, getJwtSecret(), {
     expiresIn: "7d",
   });
 
@@ -10,6 +12,7 @@ export const generateToken = (userId, res) => {
     httpOnly: true, // prevent XSS attacks cross-site scripting attacks
     sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
     secure: process.env.NODE_ENV !== "development",
+    path: "/",
   });
 
   return token;
