@@ -163,6 +163,7 @@ export const useAuthStore = create((set, get) => ({
         userId: authUser._id,
       },
       transports: ["websocket", "polling"],
+      tryAllTransports: true,
       withCredentials: true,
     });
     socket.connect();
