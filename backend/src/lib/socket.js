@@ -12,6 +12,7 @@ const io = new Server(server, {
       "http://localhost:5173",
       "https://fullstack-chat-app-master-omega.vercel.app",
     ],
+    credentials: true,
   },
 });
 
