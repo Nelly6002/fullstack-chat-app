@@ -129,12 +129,12 @@ const ChatContainer = () => {
           const messageSenderId = message.senderId?._id || message.senderId;
           const isOwnMessage = messageSenderId === authUser._id;
           const showDropdown = activeDropdownId === message._id;
+          const senderProfilePic = message.senderId?.profilePic;
 
           return (
             <div
               key={message._id}
               className={`relative chat ${isOwnMessage ? "chat-end" : "chat-start"}`}
-              ref={messageEndRef}
             >
               <div className="chat-image avatar">
                 <div className="size-10 rounded-full border">
@@ -142,7 +142,7 @@ const ChatContainer = () => {
                     src={
                       isOwnMessage
                         ? authUser.profilePic || "/avatar.png"
-                        : (selectedUser?.profilePic || selectedGroup?.avatar || "/avatar.png")
+                        : (senderProfilePic || selectedUser?.profilePic || selectedGroup?.avatar || "/avatar.png")
                     }
                     alt="profile pic"
                   />
@@ -215,7 +215,7 @@ const ChatContainer = () => {
             </div>
           );
         })}
-
+        <div ref={messageEndRef} />
       </div>
 
       {typingUsers.size > 0 && (

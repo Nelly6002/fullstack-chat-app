@@ -178,8 +178,16 @@ export const useAuthStore = create((set, get) => ({
       toast.success("You have a new friend request!");
     });
 
-    socket.on("newMessage", (message) => {
-      toast.success(`New message from ${message.senderId}`);
+    socket.on("newMessage", async (message) => {
+      // Lazy import to avoid circular dependency (useChatStore imports useAuthStore)
+      const { useChatStore } = await import("./useChatStore.js");
+      const { selectedUser, selectedGroup } = useChatStore.getState();
+      const senderId = message.senderId?._id || message.senderId;
+      const senderName = message.senderId?.fullName || "Someone";
+      const isCurrentChat = selectedUser?._id === senderId || selectedGroup?._id === message.groupId;
+      if (!isCurrentChat) {
+        toast.success(`New message from ${senderName}`);
+      }
     });
   },
   disconnectSocket: () => {

@@ -50,11 +50,11 @@ export const addMember = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    if (!group.admins.includes(requesterId)) {
+    if (!group.admins.some(adminId => adminId.toString() === requesterId.toString())) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    if (group.members.includes(userId)) {
+    if (group.members.some(memberId => memberId.toString() === userId.toString())) {
       return res.status(400).json({ message: "User already in group" });
     }
 
@@ -78,7 +78,7 @@ export const removeMember = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    if (!group.admins.includes(requesterId) && userId !== requesterId.toString()) {
+    if (!group.admins.some(adminId => adminId.toString() === requesterId.toString()) && userId !== requesterId.toString()) {
       return res.status(403).json({ message: "Not authorized" });
     }
 

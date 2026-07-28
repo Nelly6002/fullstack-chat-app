@@ -76,12 +76,15 @@ export const useChatStore = create((set, get) => ({
   },
 
   sendMessage: async (messageData) => {
-    const { selectedUser, selectedGroup, messages, replyTo } = get();
+    const { selectedUser, selectedGroup, replyTo } = get();
     const chatId = selectedUser ? selectedUser._id : selectedGroup._id;
     const type = selectedUser ? 'user' : 'group';
     try {
       const res = await axiosInstance.post(`/messages/send/${chatId}`, { ...messageData, replyTo: replyTo?._id, type, chatId });
-      set({ messages: [...messages, res.data], replyTo: null });
+      set((state) => ({
+        messages: state.messages.some(m => m._id === res.data._id) ? state.messages : [...state.messages, res.data],
+        replyTo: null
+      }));
     } catch (error) {
       toast.error(error.response.data.message);
     }
@@ -92,9 +95,11 @@ export const useChatStore = create((set, get) => ({
     if (!selectedUser && !selectedGroup) return;
 
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
     const chatId = selectedUser ? selectedUser._id : selectedGroup._id;
 
-    socket.on("newMessage", (newMessage) => {
+    // Use named functions so unsubscribe can remove only these specific listeners
+    const handleNewMessage = (newMessage) => {
       const msgSenderId = newMessage.senderId?._id || newMessage.senderId;
       const msgReceiverId = newMessage.receiverId?._id || newMessage.receiverId;
 
@@ -103,37 +108,51 @@ export const useChatStore = create((set, get) => ({
         : newMessage.groupId === selectedGroup._id;
       if (!isRelevant) return;
 
-      set({
-        messages: [...get().messages, newMessage],
+      set((state) => {
+        if (state.messages.some((m) => m._id === newMessage._id)) return state;
+        return { messages: [...state.messages, newMessage] };
       });
-    });
+    };
 
-    socket.on("messageEdited", (updatedMessage) => {
+    const handleEdited = (updatedMessage) => {
       set((state) => ({
         messages: state.messages.map((msg) =>
           msg._id === updatedMessage._id ? updatedMessage : msg
         ),
       }));
-    });
+    };
 
-    socket.on("messageDeleted", (messageId) => {
+    const handleDeleted = (messageId) => {
       set((state) => ({
         messages: state.messages.filter((msg) => msg._id !== messageId),
       }));
-    });
+    };
 
-    socket.on("typing", (data) => {
+    const handleTyping = (data) => {
       if (data.from !== chatId) return;
       get().setTyping(data.from, data.isTyping);
-    });
+    };
+
+    socket.on("newMessage", handleNewMessage);
+    socket.on("messageEdited", handleEdited);
+    socket.on("messageDeleted", handleDeleted);
+    socket.on("typing", handleTyping);
+
+    // Store references for targeted cleanup
+    set({ _listeners: { handleNewMessage, handleEdited, handleDeleted, handleTyping } });
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
-    socket.off("messageEdited");
-    socket.off("messageDeleted");
-    socket.off("typing");
+    if (!socket) return;
+    const { _listeners } = get();
+    if (_listeners) {
+      socket.off("newMessage", _listeners.handleNewMessage);
+      socket.off("messageEdited", _listeners.handleEdited);
+      socket.off("messageDeleted", _listeners.handleDeleted);
+      socket.off("typing", _listeners.handleTyping);
+      set({ _listeners: null });
+    }
   },
 
   editMessage: async (messageId, newText) => {

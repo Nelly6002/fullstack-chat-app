@@ -29,7 +29,7 @@ export const getMessages = async (req, res) => {
       // Check if user is member of group
       const Group = (await import("../models/group.model.js")).default;
       const group = await Group.findById(chatId);
-      if (!group || !group.members.includes(myId)) {
+      if (!group || !group.members.some(m => m.toString() === myId.toString())) {
         return res.status(403).json({ message: "Not a member of this group" });
       }
       messages = await Message.find({ groupId: chatId, deleted: false }).populate('replyTo senderId').sort({ createdAt: -1 }).skip(skip).limit(limit);
@@ -77,7 +77,7 @@ export const sendMessage = async (req, res) => {
       // Check membership
       const Group = (await import("../models/group.model.js")).default;
       const group = await Group.findById(chatId);
-      if (!group || !group.members.includes(senderId)) {
+      if (!group || !group.members.some(m => m.toString() === senderId.toString())) {
         return res.status(403).json({ message: "Not a member of this group" });
       }
     } else {
@@ -89,13 +89,13 @@ export const sendMessage = async (req, res) => {
     // Populate replyTo if exists
     await newMessage.populate('replyTo senderId');
 
-    const receiverSocketId = getReceiverSocketId(chatId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
-
-    // For groups, emit to all members
-    if (type === 'group') {
+    if (type !== 'group') {
+      const receiverSocketId = getReceiverSocketId(chatId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("newMessage", newMessage);
+      }
+    } else {
+      // For groups, emit to all members except sender
       const Group = (await import("../models/group.model.js")).default;
       const group = await Group.findById(chatId).populate('members');
       group.members.forEach(member => {
@@ -224,7 +224,7 @@ export const searchMessages = async (req, res) => {
       // Check membership
       const Group = (await import("../models/group.model.js")).default;
       const group = await Group.findById(chatId);
-      if (!group || !group.members.includes(userId)) {
+      if (!group || !group.members.some(m => m.toString() === userId.toString())) {
         return res.status(403).json({ message: "Not a member of this group" });
       }
     } else {
@@ -265,7 +265,7 @@ export const markAsRead = async (req, res) => {
     if (message.groupId) {
       const Group = (await import("../models/group.model.js")).default;
       const group = await Group.findById(message.groupId);
-      canRead = group && group.members.includes(userId);
+      canRead = group && group.members.some(m => m.toString() === userId.toString());
     } else {
       canRead = message.senderId.toString() === userId.toString() || message.receiverId.toString() === userId.toString();
     }
