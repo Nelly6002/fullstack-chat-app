@@ -58,6 +58,14 @@ export const sendMessage = async (req, res) => {
     const { text, image, replyTo, type, chatId } = req.body; // type: 'user' or 'group'
     const senderId = req.user._id;
 
+    if (type === 'group') {
+      const Group = (await import("../models/group.model.js")).default;
+      const group = await Group.findById(chatId);
+      if (!group || !group.members.some(m => m.toString() === senderId.toString())) {
+        return res.status(403).json({ message: "Not a member of this group" });
+      }
+    }
+
     let imageUrl;
     if (image) {
       // Upload base64 image to cloudinary
@@ -74,12 +82,6 @@ export const sendMessage = async (req, res) => {
 
     if (type === 'group') {
       newMessage.groupId = chatId;
-      // Check membership
-      const Group = (await import("../models/group.model.js")).default;
-      const group = await Group.findById(chatId);
-      if (!group || !group.members.some(m => m.toString() === senderId.toString())) {
-        return res.status(403).json({ message: "Not a member of this group" });
-      }
     } else {
       newMessage.receiverId = chatId;
     }

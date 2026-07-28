@@ -129,7 +129,10 @@ export const useChatStore = create((set, get) => ({
     };
 
     const handleTyping = (data) => {
-      if (data.from !== chatId) return;
+      const isRelevant = selectedUser
+        ? data.from === selectedUser._id
+        : data.groupId === selectedGroup._id;
+      if (!isRelevant) return;
       get().setTyping(data.from, data.isTyping);
     };
 
@@ -151,7 +154,7 @@ export const useChatStore = create((set, get) => ({
       socket.off("messageEdited", _listeners.handleEdited);
       socket.off("messageDeleted", _listeners.handleDeleted);
       socket.off("typing", _listeners.handleTyping);
-      set({ _listeners: null });
+      set({ _listeners: null, typingUsers: new Set() });
     }
   },
 
